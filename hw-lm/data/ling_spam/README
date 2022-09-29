@@ -1,0 +1,54 @@
+Note: This corpus is no longer used in the assignment.
+Instead, we use the Gen-Spam corpus.
+
+----------------------------------------------------------------------
+
+This directory contains the Ling-Spam corpus, as described in the 
+paper "An Evaluation of Naive Bayesian Anti-Spam Filtering" by
+I. Androutsopoulos, J. Koutsias, K.V. Chandrinos, George Paliouras, 
+and C.D. Spyropoulos; Proceedings of Workshop on Machine Learning
+in the New Information Age, 11th European Conference on Machine 
+Learning, Barcelona, Spain, 2000.  
+
+[Details about multiple versions of the corpus omitted.]
+
+By obtaining a copy of this corpus you agree to acknowledge the use 
+and origin of the corpus in any published work of yours that makes 
+use of the corpus, and to notify the person below about this work.
+
+Ion Androutsopoulos 
+E-mail: ionandr@iit.demokritos.gr
+http://www.iit.demokritos.gr/~ionandr
+July 17, 2000
+
+----------------------------------------------------------------------
+
+The paper cited above is at
+https://arxiv.org/pdf/cs/0006013.pdf 
+Here is some information from the paper:
+
+The benchmark corpus that we constructed is a mixture of spam messages
+and messages received via the Linguist list, a moderated mailing list
+about the profession and science of linguistics. The corpus, dubbed
+Ling-Spam, consists of 2893 messages:
+
+- 2412 Linguist messages, obtained by randomly downloading digests
+  from the list's archives, breaking the digests into their messages,
+  and removing text added by the list's server.
+
+- 481 spam messages, received by the first author. Attachments, HTML
+  tags, and duplicate spam messages received on the same day were not
+  included.
+
+Spam messages are 16.6% of the corpus, a figure close to the incoming
+spam rates of the authors, and rates reported in (Sahami et al. 1998)
+and (Cranor & LaMacchia 1998). 
+
+Although the Linguist messages are more topic-specific than most users
+incoming e-mail, they are less standardized than one might expect
+(e.g. they contain job postings, software availability announcements,
+even flame-like responses). Hence, useful preliminary conclusions
+about anti-spam filtering can be reached with Ling-Spam, until better
+public corpora become available. With a more direct interpretation,
+our experiments can also be seen as a study on anti-spam filters for
+open un-moderated mailing lists or newsgroups.
