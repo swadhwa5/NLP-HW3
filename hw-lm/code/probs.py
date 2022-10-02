@@ -303,6 +303,8 @@ class AddLambdaLanguageModel(CountBasedLanguageModel):
 
     def prob(self, x: Wordtype, y: Wordtype, z: Wordtype) -> float:
         assert self.event_count[x, y, z] <= self.context_count[x, y]
+        if self.context_count[x, y] == 0: 
+            return 0
         return ((self.event_count[x, y, z] + self.lambda_) /
                 (self.context_count[x, y] + self.lambda_ * self.vocab_size))
 
@@ -356,9 +358,10 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         self.X = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
         self.Y = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
 
+
     def log_prob(self, x: Wordtype, y: Wordtype, z: Wordtype) -> float:
         """Return log p(z | xy) according to this language model."""
-        # https://pytorch.org/docs/stable/generated/torch.Tensor.item.html
+        # https://pytorch.org/docs/stable/generated/torch.Tensor.item.htmls
         return self.log_prob_tensor(x, y, z).item()
 
     @typechecked
@@ -380,6 +383,13 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # compute the normalization constant Z, or this method
         # will be very slow. Some useful functions of pytorch that could
         # be useful are torch.logsumexp and torch.log_softmax.
+        # logits = self.logits(x, y, z)
+
+        # Z_xy = 0 #summation of p(x, y, z) over all z
+        # for w in self.lexicon {
+        #     p(xyz) = exp ⃗x X⃗z+⃗y Y⃗z
+        # }
+        # log_prob = math.exp(logits) / Z_xy
         raise NotImplementedError("Implement me!")
 
     def logits(self, x: Wordtype, y: Wordtype, z: Wordtype) -> torch.Tensor:

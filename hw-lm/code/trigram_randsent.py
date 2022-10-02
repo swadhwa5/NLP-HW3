@@ -61,7 +61,8 @@ def getNext(lm: LanguageModel, x: Wordtype, y: Wordtype) -> any:
         r -= weights[i]  # log p(z | xy)
         if (r > 0):
             return z
-    return weights(len(weights) - 1)
+    # return weights(len(weights) - 1)
+    return " "
 
 
 def main():
