@@ -383,14 +383,11 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # compute the normalization constant Z, or this method
         # will be very slow. Some useful functions of pytorch that could
         # be useful are torch.logsumexp and torch.log_softmax.
-        # logits = self.logits(x, y, z)
-
-        # Z_xy = 0 #summation of p(x, y, z) over all z
-        # for w in self.lexicon {
-        #     p(xyz) = exp ⃗x X⃗z+⃗y Y⃗z
-        # }
-        # log_prob = math.exp(logits) / Z_xy
-        raise NotImplementedError("Implement me!")
+        
+        logits = self.logits(x, y, z)
+        log_norm_constant = torch.logsumexp(logits(x, y, z))
+        log_prob_tensor = math.exp(logits) - log_norm_constant
+        return log_prob_tensor
 
     def logits(self, x: Wordtype, y: Wordtype, z: Wordtype) -> torch.Tensor:
         """Return a vector of the logs of the unnormalized probabilities, f(xyz) * θ.
@@ -408,7 +405,8 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # The return type, TensorType[()], represents a torch.Tensor scalar.
         # See Question 7 in INSTRUCTIONS.md for more info about fine-grained 
         # type annotations for Tensors.
-        raise NotImplementedError("Implement me!")
+        logits = torch.transpose(torch.tensor(x), 0, 1) * self.X * torch.transpose(torch.tensor(z), 0, 1) + torch.transpose(torch.tensor(y), 0, 1) * self.Y * torch.transpose(torch.tensor(z), 0, 1)
+        return logits
 
     def train(self, file: Path):    # type: ignore
         
