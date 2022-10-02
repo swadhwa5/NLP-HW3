@@ -27,24 +27,41 @@ def parse_args() -> argparse.Namespace:
         nargs="*"
     )
     parser.add_argument(
-        "max_len"
         "--max_length",
         type=int
+    )
+
+    verbosity = parser.add_mutually_exclusive_group()
+    verbosity.add_argument(
+        "-v",
+        "--verbose",
+        action="store_const",
+        const=logging.DEBUG,
+        default=logging.INFO,
+    )
+    verbosity.add_argument(
+        "-q", "--quiet", dest="verbose", action="store_const", const=logging.WARNING
     )
 
     return parser.parse_args()
 
 
-def getNext(lm: LanguageModel, x, y) -> any:
+def getNext(lm: LanguageModel, x: Wordtype, y: Wordtype) -> any:
     """The file contains one sentence per line. Return the total
     log-probability of all these sentences, under the given language model.
     (This is a natural log, as for all our internal computations.)
     """
-    r = random.rand()
-    x: Wordtype; y: Wordtype; z: Wordtype    # type annotation for loop variables below
-    for (x, y, z) in read_trigrams(file, lm.vocab):
-        log_prob += lm.log_prob(x, y, z)  # log p(z | xy)
-    return log_prob
+    weights = [0]
+    for i, (z) in enumerate(lm.vocab):
+        weights.append(weights[i] + lm.log_prob(x, y, z))
+    weights = weights[1:]
+    r = random.uniform(weights[len(weights) - 1], 0)
+    z: Wordtype    # type annotation for loop variables below
+    for i, z in enumerate(lm.vocab):
+        r -= weights[i]  # log p(z | xy)
+        if (r > 0):
+            return z
+    return weights(len(weights) - 1)
 
 
 def main():
@@ -57,21 +74,18 @@ def main():
     # We use natural log for our internal computations and that's
     # the kind of log-probability that file_log_prob returns.
     # We'll print that first.
-
-    for _ in range(args.num_gen):
+    print(args)
+    for _ in range(args.num_gen[0]):
         sentence = ['BOS', 'BOS']
         i = 0
-        while i < args.max_len:
-            sentence.append(getNext(sentence[i], sentence[i + 1]))
+        nextWord = ''
+        while i < args.max_length or nextWord == 'EOS':
+            nextWord = getNext(lm, sentence[i], sentence[i + 1])
+            sentence.append(nextWord)
             i += 1
-        print(' '.join(sentence))
-
-    log.info("Per-file log-probabilities:")
-    total_log_prob = 0.0
-    for file in args.test_files:
-        log_prob: float = file_log_prob(file, lm)
-        print(f"{log_prob:g}\t{file}")
-        total_log_prob += log_prob
+        if (sentence[len(sentence) - 1] != 'EOS'):
+            sentence.append('...')
+        print(' '.join(sentence[2:]))
 
 
 if __name__ == "__main__":
