@@ -53,16 +53,15 @@ def getNext(lm: LanguageModel, x: Wordtype, y: Wordtype) -> any:
     """
     weights = [0]
     for i, (z) in enumerate(lm.vocab):
-        weights.append(weights[i] + lm.log_prob(x, y, z))
+        weights.append(weights[i] + lm.prob(x, y, z))
     weights = weights[1:]
-    r = random.uniform(weights[len(weights) - 1], 0)
+    r = random.uniform(0, 1)
     z: Wordtype    # type annotation for loop variables below
     for i, z in enumerate(lm.vocab):
-        r -= weights[i]  # log p(z | xy)
-        if (r > 0):
+        if (weights[i] > r):
             return z
     # return weights(len(weights) - 1)
-    return " "
+    return z
 
 
 def main():
@@ -86,6 +85,8 @@ def main():
             i += 1
         if (sentence[len(sentence) - 1] != 'EOS'):
             sentence.append('...')
+        else:
+            print("POGGERS!!!!")
         print(' '.join(sentence[2:]))
 
 

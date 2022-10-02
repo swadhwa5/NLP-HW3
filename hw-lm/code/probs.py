@@ -303,7 +303,7 @@ class AddLambdaLanguageModel(CountBasedLanguageModel):
 
     def prob(self, x: Wordtype, y: Wordtype, z: Wordtype) -> float:
         assert self.event_count[x, y, z] <= self.context_count[x, y]
-        if self.context_count[x, y] == 0: 
+        if self.lambda_ == 0 and self.context_count[x, y] == 0: 
             return 0
         return ((self.event_count[x, y, z] + self.lambda_) /
                 (self.context_count[x, y] + self.lambda_ * self.vocab_size))
