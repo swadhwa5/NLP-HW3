@@ -46,11 +46,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def getNext(lm: LanguageModel, x: Wordtype, y: Wordtype) -> any:
-    """The file contains one sentence per line. Return the total
-    log-probability of all these sentences, under the given language model.
-    (This is a natural log, as for all our internal computations.)
-    """
+def get_next(lm: LanguageModel, x: Wordtype, y: Wordtype) -> any:
     weights = [0]
     for i, (z) in enumerate(lm.vocab):
         weights.append(weights[i] + lm.prob(x, y, z))
@@ -60,8 +56,7 @@ def getNext(lm: LanguageModel, x: Wordtype, y: Wordtype) -> any:
     for i, z in enumerate(lm.vocab):
         if (weights[i] > r):
             return z
-    # return weights(len(weights) - 1)
-    return z
+    return z # why are we returning z anyways?
 
 
 def main():
@@ -80,7 +75,7 @@ def main():
         i = 0
         nextWord = ''
         while i < args.max_length or nextWord == 'EOS':
-            nextWord = getNext(lm, sentence[i], sentence[i + 1])
+            nextWord = get_next(lm, sentence[i], sentence[i + 1])
             sentence.append(nextWord)
             i += 1
         if (sentence[len(sentence) - 1] != 'EOS'):
