@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import math
 import sys
+import code 
 
 from pathlib import Path
 
@@ -356,13 +357,16 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
             vocab = Integerizer([])
             for line in f:  # All of the other lines are regular.
                 word_and_embedding = line.split("\t")
+                # if vocab.index(word_and_embedding[0]) is None:
+                #     word_and_embedding[0] = OOV
                 index = vocab.index(word_and_embedding[0], True)
                 embedding = word_and_embedding[1:]
                 embedding = list(map(float, embedding))
                 lexicon[index] = torch.tensor(embedding)
         self.vocab = vocab
         self.lexicon = lexicon
-        self.dim = w
+        self.dim = int(w)
+        self.regularizer_multiplier = 1 / len(vocab)
 
         # We wrap the following matrices in nn.Parameter objects.
         # This lets PyTorch know that these are parameters of the model
@@ -402,9 +406,22 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # be useful are torch.logsumexp and torch.log_softmax.
         
         logits = self.logits(x, y, z)
-        log_norm_constant = torch.logsumexp(logits(x, y, torch.transpose(self.lexicon)), 0)
+        # print("logits")
+        # print(logits)
+        log_norm_constant = self.log_z(x, y)
         log_prob_tensor = logits - log_norm_constant
         return log_prob_tensor
+
+    def log_z(self, x: Wordtype, y: Wordtype) -> toch.Tensor:
+        if self.vocab.index(x) is None:
+            x = OOL
+        if self.vocab.index(y) is None:
+            y = OOL
+        x_emb = self.lexicon[self.vocab.index(x)]
+        y_emb = self.lexicon[self.vocab.index(y)]
+        logits = x_emb @ self.X @ self.lexicon.t() + y_emb @ self.Y @ self.lexicon.t()
+        return torch.logsumexp(logits, 0)
+
 
     def logits(self, x: Wordtype, y: Wordtype, z: Wordtype) -> torch.Tensor:
         """Return a vector of the logs of the unnormalized probabilities, f(xyz) * θ.
@@ -422,10 +439,20 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # The return type, TensorType[()], represents a torch.Tensor scalar.
         # See Question 7 in INSTRUCTIONS.md for more info about fine-grained 
         # type annotations for Tensors.
+        if self.vocab.index(x) is None:
+            x = OOL
+        if self.vocab.index(y) is None:
+            y = OOL
+        if self.vocab.index(z) is None:
+            z = OOL
         x_emb = self.lexicon[self.vocab.index(x)]
         y_emb = self.lexicon[self.vocab.index(y)]
         z_emb = self.lexicon[self.vocab.index(z)]
-        logits = torch.transpose(x_emb) @ self.X @ torch.transpose(z_emb) + torch.transpose(y_emb) @ torch.transpose(z_emb)
+        print("embeddings")
+        print(x_emb)
+        print(y_emb)
+        print(z_emb)
+        logits = x_emb @ self.X @ z_emb + y_emb @ self.Y @ z_emb
         return logits
 
     def train(self, file: Path):    # type: ignore
@@ -437,7 +464,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         ### The `type: ignore` comment above tells the type checker to ignore this inconsistency.
         
         # Optimization hyperparameters.
-        gamma0 = 0.1  # initial learning rate for spam detection, and 0.001 for language ID
+        gamma0 = 0.01  # initial learning rate for spam detection, and 0.001 for language ID
 
         # This is why we needed the nn.Parameter above.
         # The optimizer needs to know the list of parameters
@@ -515,14 +542,18 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # each parameter were changed slightly.
 
         E = 10
-        for _ in range(E):
-            for _ in range(N):
-                for (x, y, z) in tqdm(read_trigrams(file, self.vocab), total=10*N):
-                    F_i = self.log_prob(x, y, z) - self.lamda_ * self.parameters 
-                    (-F_i).backward()
-                    optimizer.step()
-                    optimizer.zero_grad()
-        return self.parameters
+        print(N)
+        for e in range(E):
+            F = 0
+            for (x, y, z) in tqdm(read_trigrams(file, self.vocab), total=N):
+                F_i = self.log_prob_tensor(x, y, z) - self.regularizer_multiplier * torch.sum(torch.square(self.X)) - self.regularizer_multiplier * torch.sum(torch.square(self.Y)) 
+                (-F_i).backward()
+                optimizer.step()
+                optimizer.zero_grad()
+                if F < 10:
+                    F += 1
+            print("epoch " + str(e) + ": F = " + str(F / N))
+        return self.parameters()
 
 
 class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
