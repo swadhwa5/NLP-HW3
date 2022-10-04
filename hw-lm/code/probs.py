@@ -457,9 +457,6 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         x_emb = self.lexicon[self.integeriser.index(x)]
         y_emb = self.lexicon[self.integeriser.index(y)]
         z_emb = self.lexicon[self.integeriser.index(z)]
-        # print(x_emb.shape)
-        print(y_emb.shape)
-        # print(z_emb.shape)
         logits = x_emb @ self.X @ z_emb + y_emb @ self.Y @ z_emb
         return logits
 
