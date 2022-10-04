@@ -87,18 +87,16 @@ def main():
     for file in args.test_files:
         # lm1
         log_prob1: float = file_log_prob(file, lm1)
-        print(f"{log_prob1:g}\t{file}")
+        # print(f"{log_prob1:g}\t{file}")
 
         # lm2
         log_prob2: float = file_log_prob(file, lm2)
-        print(f"{log_prob2:g}\t{file}")
+        # print(f"{log_prob2:g}\t{file}")
 
         log_priori1 = math.log(priori1)
         log_priori1bar = math.log(1 - priori1)
         bayes_denominator = torch.logaddexp(torch.Tensor([log_prob1 + log_priori1]), torch.Tensor([log_prob2 + log_priori1bar]))
         log_bayes_prob1 = log_prob1 + log_priori1 - bayes_denominator
-        print(log_bayes_prob1[0])
-        print(math.exp(log_bayes_prob1[0]))
         if (math.exp(log_bayes_prob1[0]) > 0.5):
             count_lm1 += 1
             print(str(lm1_name) + '    ' + str(file))
