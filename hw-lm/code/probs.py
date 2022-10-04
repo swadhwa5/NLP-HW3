@@ -402,10 +402,10 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         self.X = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
         self.Y = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
 
-    # def embedding(self, word: Wordtype) -> any: 
-    #     if self.integeriser.index(word) == None or word == "OOV" or word not in self.vocab:
-    #         word = "OOL"
-    #     return self.lexicon[self.integeriser.index(word)]
+    def embedding(self, word: Wordtype) -> any: 
+        if self.integeriser.index(word) == None or word == "OOV" or word not in self.vocab:
+            word = "OOL"
+        return self.lexicon[self.integeriser.index(word)]
 
     def log_prob(self, x: Wordtype, y: Wordtype, z: Wordtype) -> float:
         """Return log p(z | xy) according to this language model."""
@@ -443,6 +443,10 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         return log_prob_tensor
 
     def log_z(self, x: Wordtype, y: Wordtype) -> torch.Tensor:
+        if self.integeriser.index(x) == None:
+            x = "OOL"
+        if self.integeriser.index(y) == None:
+            y = "OOL"
         x_emb = self.Z[self.integeriser.index(x)]
         y_emb = self.Z[self.integeriser.index(y)]
         logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t()
@@ -465,6 +469,12 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # The return type, TensorType[()], represents a torch.Tensor scalar.
         # See Question 7 in INSTRUCTIONS.md for more info about fine-grained 
         # type annotations for Tensors.
+        if self.integeriser.index(x) == None:
+            x = "OOL"
+        if self.integeriser.index(y) == None:
+            y = "OOL"
+        if self.integeriser.index(z) == None:
+            z = "OOL"
         x_emb = self.Z[self.integeriser.index(x)]
         y_emb = self.Z[self.integeriser.index(y)]
         z_emb = self.Z[self.integeriser.index(z)]
