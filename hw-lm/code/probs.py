@@ -382,7 +382,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         self.Y = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
 
     def embedding(self, word: Wordtype) -> any: 
-        if self.integeriser.index(word) == None or word == "OOV":
+        if self.integeriser.index(word) == None or word == "OOV" or word not in self.vocab:
             word = "OOL"
         return self.lexicon[self.integeriser.index(word)]
 
@@ -448,7 +448,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # The return type, TensorType[()], represents a torch.Tensor scalar.
         # See Question 7 in INSTRUCTIONS.md for more info about fine-grained 
         # type annotations for Tensors.
-        print(self.vocab)
+        # print(self.vocab)
         if self.integeriser.index(x) == None or x == "OOV" or x not in self.vocab:
             x = "OOL"
         if self.integeriser.index(y) == None or y == "OOV" or y not in self.vocab:
