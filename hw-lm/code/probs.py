@@ -410,17 +410,18 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # compute the normalization constant Z, or this method
         # will be very slow. Some useful functions of pytorch that could
         # be useful are torch.logsumexp and torch.log_softmax.
-        
+        if self.integeriser.index(x) == None:
+            x = "OOL"
+        if self.integeriser.index(y) == None:
+            y = "OOL"
+        if self.integeriser.index(z) == None:
+            z = "OOL"
         logits = self.logits(x, y, z)
         log_norm_constant = self.log_z(x, y)
         log_prob_tensor = logits - log_norm_constant
         return log_prob_tensor
 
     def log_z(self, x: Wordtype, y: Wordtype) -> torch.Tensor:
-        if self.integeriser.index(x) == None:
-            x = "OOL"
-        if self.integeriser.index(y) == None:
-            y = "OOL"
         x_emb = self.lexicon[self.integeriser.index(x)]
         y_emb = self.lexicon[self.integeriser.index(y)]
         logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t()
@@ -443,12 +444,6 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # The return type, TensorType[()], represents a torch.Tensor scalar.
         # See Question 7 in INSTRUCTIONS.md for more info about fine-grained 
         # type annotations for Tensors.
-        if self.integeriser.index(x) == None:
-            x = "OOL"
-        if self.integeriser.index(y) == None:
-            y = "OOL"
-        if self.integeriser.index(z) == None:
-            z = "OOL"
         x_emb = self.lexicon[self.integeriser.index(x)]
         y_emb = self.lexicon[self.integeriser.index(y)]
         z_emb = self.lexicon[self.integeriser.index(z)]
