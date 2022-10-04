@@ -347,26 +347,28 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
             raise ValueError("You must include a non-negative regularization value")
         self.l2: float = l2
 
+        self.vocab = vocab
+
         # TODO: READ THE LEXICON OF WORD VECTORS AND STORE IT IN A USEFUL FORMAT.
         with open(lexicon_file) as f:
             first_line = next(f)  # Peel off the special first line.
             first_line = first_line.strip()
             [h, w] = first_line.split(" ")
             lexicon = torch.empty(int(h), int(w))
-            vocab: Integerizer[str]
-            vocab = Integerizer([])
+            integeriser: Integerizer[str]
+            integeriser = Integerizer([])
             for line in f:  # All of the other lines are regular.
                 word_and_embedding = line.split("\t")
-                # if vocab.index(word_and_embedding[0]) is None:
-                #     word_and_embedding[0] = OOV
-                index = vocab.index(word_and_embedding[0], True)
+                index = integeriser.index(word_and_embedding[0], True)
                 embedding = word_and_embedding[1:]
                 embedding = list(map(float, embedding))
                 lexicon[index] = torch.tensor(embedding)
-        self.vocab = vocab
+
+        self.integeriser = integeriser
         self.lexicon = lexicon
         self.dim = int(w)
-        self.regularizer_multiplier = 1 / len(vocab)
+
+        self.Z = torch.stack([self.embedding(word) for word in self.vocab])
 
         # We wrap the following matrices in nn.Parameter objects.
         # This lets PyTorch know that these are parameters of the model
@@ -379,6 +381,10 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         self.X = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
         self.Y = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
 
+    def embedding(self, word: Wordtype) -> any: 
+        if word == "OOV":
+            word = "OOL"
+        return self.lexicon[self.integeriser.index(word)]
 
     def log_prob(self, x: Wordtype, y: Wordtype, z: Wordtype) -> float:
         """Return log p(z | xy) according to this language model."""
@@ -406,20 +412,18 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # be useful are torch.logsumexp and torch.log_softmax.
         
         logits = self.logits(x, y, z)
-        # print("logits")
-        # print(logits)
         log_norm_constant = self.log_z(x, y)
         log_prob_tensor = logits - log_norm_constant
         return log_prob_tensor
 
-    def log_z(self, x: Wordtype, y: Wordtype) -> toch.Tensor:
-        if self.vocab.index(x) is None:
-            x = OOL
-        if self.vocab.index(y) is None:
-            y = OOL
-        x_emb = self.lexicon[self.vocab.index(x)]
-        y_emb = self.lexicon[self.vocab.index(y)]
-        logits = x_emb @ self.X @ self.lexicon.t() + y_emb @ self.Y @ self.lexicon.t()
+    def log_z(self, x: Wordtype, y: Wordtype) -> torch.Tensor:
+        if x == "OOV":
+            x = "OOL"
+        if y == "OOV":
+            y = "OOL"
+        x_emb = self.lexicon[self.integeriser.index(x)]
+        y_emb = self.lexicon[self.integeriser.index(y)]
+        logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t()
         return torch.logsumexp(logits, 0)
 
 
@@ -439,19 +443,15 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # The return type, TensorType[()], represents a torch.Tensor scalar.
         # See Question 7 in INSTRUCTIONS.md for more info about fine-grained 
         # type annotations for Tensors.
-        if self.vocab.index(x) is None:
-            x = OOL
-        if self.vocab.index(y) is None:
-            y = OOL
-        if self.vocab.index(z) is None:
-            z = OOL
-        x_emb = self.lexicon[self.vocab.index(x)]
-        y_emb = self.lexicon[self.vocab.index(y)]
-        z_emb = self.lexicon[self.vocab.index(z)]
-        print("embeddings")
-        print(x_emb)
-        print(y_emb)
-        print(z_emb)
+        if x == "OOV":
+            x = "OOL"
+        if y == "OOV":
+            y = "OOL"
+        if z == "OOV":
+            z = "OOL"
+        x_emb = self.lexicon[self.integeriser.index(x)]
+        y_emb = self.lexicon[self.integeriser.index(y)]
+        z_emb = self.lexicon[self.integeriser.index(z)]
         logits = x_emb @ self.X @ z_emb + y_emb @ self.Y @ z_emb
         return logits
 
@@ -478,6 +478,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
 
         N = num_tokens(file)
         log.info("Start optimizing on {N} training tokens...")
+        self.regularizer_multiplier = self.l2 / N
 
         #####################
         # TODO: Implement your SGD here by taking gradient steps on a sequence
@@ -542,17 +543,16 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # each parameter were changed slightly.
 
         E = 10
-        print(N)
         for e in range(E):
-            F = 0
+            F = 1
             for (x, y, z) in tqdm(read_trigrams(file, self.vocab), total=N):
                 F_i = self.log_prob_tensor(x, y, z) - self.regularizer_multiplier * torch.sum(torch.square(self.X)) - self.regularizer_multiplier * torch.sum(torch.square(self.Y)) 
                 (-F_i).backward()
                 optimizer.step()
                 optimizer.zero_grad()
-                if F < 10:
-                    F += 1
+                F += F_i.item()
             print("epoch " + str(e) + ": F = " + str(F / N))
+        print("Finished training on " + str(N) + " tokens")
         return self.parameters()
 
 
