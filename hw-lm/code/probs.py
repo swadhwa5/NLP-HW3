@@ -382,7 +382,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         self.Y = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
 
     def embedding(self, word: Wordtype) -> any: 
-        if self.integeriser.index(word) == None:
+        if self.integeriser.index(word) == None or word == "OOV":
             word = "OOL"
         return self.lexicon[self.integeriser.index(word)]
 
