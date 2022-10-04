@@ -350,25 +350,46 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         self.vocab = vocab
 
         # TODO: READ THE LEXICON OF WORD VECTORS AND STORE IT IN A USEFUL FORMAT.
+
+        lexicon_map = dict()
         with open(lexicon_file) as f:
             first_line = next(f)  # Peel off the special first line.
             first_line = first_line.strip()
             [h, w] = first_line.split(" ")
-            lexicon = torch.empty(int(h), int(w))
-            integeriser: Integerizer[str]
-            integeriser = Integerizer([])
             for line in f:  # All of the other lines are regular.
                 word_and_embedding = line.split("\t")
-                index = integeriser.index(word_and_embedding[0], True)
                 embedding = word_and_embedding[1:]
                 embedding = list(map(float, embedding))
-                lexicon[index] = torch.tensor(embedding)
+                lexicon_map[word_and_embedding[0]] = torch.tensor(embedding)
 
-        self.integeriser = integeriser
-        self.lexicon = lexicon
+        z = []
+        voc = []
+        i = 0
+        for word in self.vocab:
+            if word not in lexicon_map:
+                word = "OOL"
+            z.append(lexicon_map[word])
+            voc.append(word)
+            i += 1
+        self.integeriser = Integerizer(voc)
+        self.Z = torch.stack(z)
+
         self.dim = int(w)
 
-        self.Z = torch.stack([self.embedding(word) for word in self.vocab])
+        
+        # with open(lexicon_file) as f:
+        #     first_line = next(f)  # Peel off the special first line.
+        #     first_line = first_line.strip()
+        #     [h, w] = first_line.split(" ")
+        #     lexicon = torch.empty(int(h), int(w))
+        #     lexicon_integeriser: Integerizer[str]
+        #     lexicon_integeriser = Integerizer([])
+        #     for line in f:  # All of the other lines are regular.
+        #         word_and_embedding = line.split("\t")
+        #         index = lexicon_integeriser.index(word_and_embedding[0], True)
+        #         embedding = word_and_embedding[1:]
+        #         embedding = list(map(float, embedding))
+        #         lexicon[index] = torch.tensor(embedding)
 
         # We wrap the following matrices in nn.Parameter objects.
         # This lets PyTorch know that these are parameters of the model
@@ -381,10 +402,10 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         self.X = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
         self.Y = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
 
-    def embedding(self, word: Wordtype) -> any: 
-        if self.integeriser.index(word) == None or word == "OOV" or word not in self.vocab:
-            word = "OOL"
-        return self.lexicon[self.integeriser.index(word)]
+    # def embedding(self, word: Wordtype) -> any: 
+    #     if self.integeriser.index(word) == None or word == "OOV" or word not in self.vocab:
+    #         word = "OOL"
+    #     return self.lexicon[self.integeriser.index(word)]
 
     def log_prob(self, x: Wordtype, y: Wordtype, z: Wordtype) -> float:
         """Return log p(z | xy) according to this language model."""
@@ -410,11 +431,11 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # compute the normalization constant Z, or this method
         # will be very slow. Some useful functions of pytorch that could
         # be useful are torch.logsumexp and torch.log_softmax.
-        if self.integeriser.index(x) == None or x == "OOV" or x not in self.vocab:
+        if self.integeriser.index(x) == None:
             x = "OOL"
-        if self.integeriser.index(y) == None or y == "OOV" or y not in self.vocab:
+        if self.integeriser.index(y) == None:
             y = "OOL"
-        if self.integeriser.index(z) == None or z == "OOV" or z not in self.vocab:
+        if self.integeriser.index(z) == None:
             z = "OOL"
         logits = self.logits(x, y, z)
         log_norm_constant = self.log_z(x, y)
@@ -422,12 +443,8 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         return log_prob_tensor
 
     def log_z(self, x: Wordtype, y: Wordtype) -> torch.Tensor:
-        if self.integeriser.index(x) == None or x == "OOV" or x not in self.vocab:
-            x = "OOL"
-        if self.integeriser.index(y) == None or y == "OOV" or y not in self.vocab:
-            y = "OOL"
-        x_emb = self.lexicon[self.integeriser.index(x)]
-        y_emb = self.lexicon[self.integeriser.index(y)]
+        x_emb = self.Z[self.integeriser.index(x)]
+        y_emb = self.Z[self.integeriser.index(y)]
         logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t()
         return torch.logsumexp(logits, 0)
 
@@ -448,17 +465,12 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # The return type, TensorType[()], represents a torch.Tensor scalar.
         # See Question 7 in INSTRUCTIONS.md for more info about fine-grained 
         # type annotations for Tensors.
-        # print(self.vocab)
-        if self.integeriser.index(x) == None or x == "OOV" or x not in self.vocab:
-            x = "OOL"
-        if self.integeriser.index(y) == None or y == "OOV" or y not in self.vocab:
-            y = "OOL"
-        if self.integeriser.index(z) == None or z == "OOV" or z not in self.vocab:
-            z = "OOL"
-        x_emb = self.lexicon[self.integeriser.index(x)]
-        y_emb = self.lexicon[self.integeriser.index(y)]
-        z_emb = self.lexicon[self.integeriser.index(z)]
+        x_emb = self.Z[self.integeriser.index(x)]
+        y_emb = self.Z[self.integeriser.index(y)]
+        z_emb = self.Z[self.integeriser.index(z)]
+
         logits = x_emb @ self.X @ z_emb + y_emb @ self.Y @ z_emb
+        # print(x, x_emb)
         return logits
 
     def train(self, file: Path):    # type: ignore
