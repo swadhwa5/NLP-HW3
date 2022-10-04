@@ -382,7 +382,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         self.Y = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
 
     def embedding(self, word: Wordtype) -> any: 
-        if word == "OOV":
+        if self.integeriser.index(word) == None:
             word = "OOL"
         return self.lexicon[self.integeriser.index(word)]
 
@@ -417,9 +417,9 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         return log_prob_tensor
 
     def log_z(self, x: Wordtype, y: Wordtype) -> torch.Tensor:
-        if x == "OOV":
+        if self.integeriser.index(x) == None:
             x = "OOL"
-        if y == "OOV":
+        if self.integeriser.index(y) == None:
             y = "OOL"
         x_emb = self.lexicon[self.integeriser.index(x)]
         y_emb = self.lexicon[self.integeriser.index(y)]
@@ -443,11 +443,11 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         # The return type, TensorType[()], represents a torch.Tensor scalar.
         # See Question 7 in INSTRUCTIONS.md for more info about fine-grained 
         # type annotations for Tensors.
-        if x == "OOV":
+        if self.integeriser.index(x) == None:
             x = "OOL"
-        if y == "OOV":
+        if self.integeriser.index(y) == None:
             y = "OOL"
-        if z == "OOV":
+        if self.integeriser.index(z) == None:
             z = "OOL"
         x_emb = self.lexicon[self.integeriser.index(x)]
         y_emb = self.lexicon[self.integeriser.index(y)]
@@ -544,14 +544,14 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
 
         E = 10
         for e in range(E):
-            F = 1
+            F = 0
             for (x, y, z) in tqdm(read_trigrams(file, self.vocab), total=N):
                 F_i = self.log_prob_tensor(x, y, z) - self.regularizer_multiplier * torch.sum(torch.square(self.X)) - self.regularizer_multiplier * torch.sum(torch.square(self.Y)) 
                 (-F_i).backward()
                 optimizer.step()
                 optimizer.zero_grad()
-                F += F_i.item()
-            print("epoch " + str(e) + ": F = " + str(F / N))
+                F += F_i
+            print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
         print("Finished training on " + str(N) + " tokens")
         return self.parameters()
 
