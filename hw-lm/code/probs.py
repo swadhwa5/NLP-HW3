@@ -23,6 +23,7 @@ import logging
 import math
 import sys
 import code 
+import random
 
 from pathlib import Path
 
@@ -613,19 +614,13 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     #   as `torch.optim.Adam` (https://pytorch.org/docs/stable/optim.html).
     #
     def __init__(self, vocab: Vocab, lexicon_file: Path, l2: float) -> None:
-        super.__init__(vocab, lexicon_file, l2)
+        super().__init__(vocab, lexicon_file, l2)
 
-        self.OOV_weight = nn.Parameter(torch.zeros((1, 1)), requires_grad=True)
+        self.OOV_weight = nn.Parameter(torch.tensor([0.0]), requires_grad=True)
 
     @typechecked
     def log_prob_tensor(self, x: Wordtype, y: Wordtype, z: Wordtype) -> TensorType[()]:
         """Return the same value as log_prob, but stored as a tensor."""
-        if self.integeriser.index(x) == None:
-            x = "OOL"
-        if self.integeriser.index(y) == None:
-            y = "OOL"
-        if self.integeriser.index(z) == None:
-            z = "OOL"
         logits = self.logits(x, y, z)
         log_norm_constant = self.log_z(x, y)
         log_prob_tensor = logits - log_norm_constant
@@ -638,7 +633,7 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
             y = "OOL"
         x_emb = self.Z[self.integeriser.index(x)]
         y_emb = self.Z[self.integeriser.index(y)]
-        logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t() + self.OOV_weight
+        logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t() + self.OOV_weight[0]
         return torch.logsumexp(logits, 0)
 
 
@@ -648,7 +643,8 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         exponentiate and renormalize in order to get a probability distribution."""
         logits = 0
         if (z == 'OOV'):
-            logits += self.OOV_weight
+            logits += self.OOV_weight[0]
+
         if self.integeriser.index(x) == None:
             x = "OOL"
         if self.integeriser.index(y) == None:
@@ -663,36 +659,40 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         # print(x, x_emb)
         return logits
     
-        def train(self, file: Path):    # type: ignore
-            # Optimization hyperparameters.
-            gamma0 = 0.1  # initial learning rate for spam detection, and 0.001 for language ID
+    def train(self, file: Path):    # type: ignore
+        print("IMPROVED!!")
+        # Optimization hyperparameters.
+        gamma0 = 0.1  # initial learning rate for spam detection, and 0.001 for language ID
 
-            # This is why we needed the nn.Parameter above.
-            # The optimizer needs to know the list of parameters
-            # it should be trying to update.
-            optimizer = optim.Adam(self.parameters(), lr=gamma0)
-            # optimizer = optim.ConvergentSGD(self.parameters(), lr=gamma0)
+        # This is why we needed the nn.Parameter above.
+        # The optimizer needs to know the list of parameters
+        # it should be trying to update.
+        optimizer = optim.Adam(self.parameters(), lr=gamma0)
+        # optimizer = optim.ConvergentSGD(self.parameters(), lr=gamma0)
 
-            nn.init.zeros_(self.X)   # type: ignore
-            nn.init.zeros_(self.Y)   # type: ignore
+        nn.init.zeros_(self.X)   # type: ignore
+        nn.init.zeros_(self.Y)   # type: ignore
 
-            N = num_tokens(file)
-            log.info("Start optimizing on {N} training tokens...")
-            self.regularizer_multiplier = self.l2 / N
+        N = num_tokens(file)
+        log.info("Start optimizing on {N} training tokens...")
+        self.regularizer_multiplier = self.l2 / N
 
-            log.info("done optimizing.")
+        log.info("done optimizing.")
 
-            E = 10
-            for e in range(E):
-                F = 0
-                for (x, y, z) in tqdm(random.shuffle(read_trigrams(file, self.vocab), total=N)):
-                    F_i = self.log_prob_tensor(x, y, z) - self.regularizer_multiplier * torch.sum(torch.square(self.X)) - self.regularizer_multiplier * torch.sum(torch.square(self.Y)) 
-                    (-F_i).backward()
-                    optimizer.step()
-                    optimizer.zero_grad()
-                    F += F_i
-                print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
+        E = 10
+        trigrams = list(read_trigrams(file, self.vocab))
+        for e in range(E):
+            F = 0
+            random.shuffle(trigrams)
+            for (x, y, z) in tqdm(trigrams, total=N):
+                F_i = self.log_prob_tensor(x, y, z) - self.regularizer_multiplier * (torch.sum(torch.square(self.X)) + torch.sum(torch.square(self.Y)) + torch.square(self.OOV_weight))
+                (-F_i).backward()
+                optimizer.step()
+                optimizer.zero_grad()
+                F += F_i
+            # print(torch.square(self.OOV_weight))
+            print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
 
-            print("Finished training on " + str(N) + " tokens")
-            return self.parameters()
+        print("Finished training on " + str(N) + " tokens")
+        return self.parameters()
 
