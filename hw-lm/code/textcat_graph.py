@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 import torch
 import matplotlib.pyplot as plt
+import numpy as np
 
 from probs import Wordtype, LanguageModel, num_tokens, read_trigrams
 
@@ -103,25 +104,64 @@ def main():
         # print(log_bayes_prob1[0])
         # print(math.exp(log_bayes_prob1[0]))
         if (math.exp(log_bayes_prob1[0]) > 0.5):
-            if 'gen' in file:
-                correct.append(file.split('.')[1])
+            print(str(file).split('.')[2].split('/'))
+            # if 'gen' == str(file).split('.')[2].split('/')[4]:
+            #     correct.append(str(file).split('.')[3])
+            # else:
+            #     incorrect.append(str(file).split('.')[3])
+            if 'english' == str(file).split('.')[2].split('/')[4]:
+                correct.append(str(file).split('.')[3])
             else:
-                incorrect.append(file.split('.')[1])
+                incorrect.append(str(file).split('.')[3])
             # count_lm1 += 1
             # print(str(lm1_name) + '    ' + str(file))
         else:
-            if 'gen' not in file:
-                correct.append(file.split('.')[1])
+            if 'spanish' == str(file).split('.')[2].split('/')[4]:
+                correct.append(str(file).split('.')[3])
             else:
-                incorrect.append(file.split('.')[1])
+                incorrect.append(str(file).split('.')[3])
             # count_lm2 += 1
             # print(str(lm2_name) + '    ' + str(file))
-    plt.hist(correct, bins=4)
-    plt.hist(incorrect, bins=4)
-    plt.show()
+    all = np.hstack(([int(x) for x in correct], [int(x) for x in incorrect]))
+    incorrect = [int(x) for x in incorrect]
+    correct = [int(x) for x in correct]
+    twenty = np.percentile(all, 20)
+    fourty = np.percentile(all, 40)
+    sixty = np.percentile(all, 60)
+    eighty = np.percentile(all, 80)
 
-    print(str(count_lm1) + ' files were more probablly ' + str(lm1_name) + ' (' + str(round((count_lm1 / (count_lm1 + count_lm2)) * 100, 2)) + '%)')
-    print(str(count_lm2) + ' files were more probablly ' + str(lm2_name) + ' (' + str(round((count_lm2 / (count_lm1 + count_lm2)) * 100, 2)) + '%)')
+    incor_20 = [x <= twenty for x in incorrect].count(True)
+    cor_20 = ([x <= twenty for x in correct]).count(True)
+
+    print(twenty, fourty)
+    incor_40 = [(x > twenty and x <= fourty) for x in incorrect].count(True)
+    cor_40 = [x > twenty and x <= fourty for x in correct].count(True)
+
+    incor_60 = ([x > fourty and x <= sixty for x in incorrect]).count(True)
+    cor_60 = ([x > fourty and x <= sixty for x in correct]).count(True)
+
+    incor_80 = ([x > sixty and x <= eighty for x in incorrect]).count(True)
+    cor_80 = ([x > sixty and x <= eighty for x in correct]).count(True)
+
+    incor_100 = ([x > eighty for x in incorrect]).count(True)
+    cor_100 = ([x > eighty for x in correct]).count(True)
+
+    answer = [(cor_20 / (incor_20 + cor_20)), (cor_40 / (incor_40 + cor_40)), (cor_60 / (incor_60 + cor_60)), (cor_80 / (incor_80 + cor_80)), (cor_100 / (incor_100 + cor_100))]
+    print(answer)
+
+    data = {'0-20': answer[0], '20-40': answer[1], '40-60': answer[2], '60-80': answer[3], '80-100': answer[4]}
+    names = list(data.keys())
+    values = list(data.values())
+
+    plt.bar(range(len(data)), values, tick_label=names)
+    plt.show()
+    # bins = np.histogram(np.hstack(([int(x) for x in correct], [int(x) for x in incorrect])), bins=4)[1]
+    # plt.eventplot([[int(x) for x in correct], [int(x) for x in incorrect]], orientation='horizontal', colors = ['b', 'r'])
+    # plt.eventplot([int(x) for x in incorrect], orientation='horizontal', colors='r')
+    # plt.show()
+
+    # print(str(count_lm1) + ' files were more probablly ' + str(lm1_name) + ' (' + str(round((count_lm1 / (count_lm1 + count_lm2)) * 100, 2)) + '%)')
+    # print(str(count_lm2) + ' files were more probablly ' + str(lm2_name) + ' (' + str(round((count_lm2 / (count_lm1 + count_lm2)) * 100, 2)) + '%)')
 
 if __name__ == "__main__":
     main()
