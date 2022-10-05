@@ -492,7 +492,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         ### The `type: ignore` comment above tells the type checker to ignore this inconsistency.
         
         # Optimization hyperparameters.
-        gamma0 = 0.01  # initial learning rate for spam detection, and 0.001 for language ID
+        gamma0 = 0.1  # initial learning rate for spam detection, and 0.001 for language ID
 
         # This is why we needed the nn.Parameter above.
         # The optimizer needs to know the list of parameters
@@ -612,4 +612,87 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     # * You could use a different optimization algorithm instead of SGD, such
     #   as `torch.optim.Adam` (https://pytorch.org/docs/stable/optim.html).
     #
-    pass
+    def __init__(self, vocab: Vocab, lexicon_file: Path, l2: float) -> None:
+        super.__init__(vocab, lexicon_file, l2)
+
+        self.OOV_weight = nn.Parameter(torch.zeros((1, 1)), requires_grad=True)
+
+    @typechecked
+    def log_prob_tensor(self, x: Wordtype, y: Wordtype, z: Wordtype) -> TensorType[()]:
+        """Return the same value as log_prob, but stored as a tensor."""
+        if self.integeriser.index(x) == None:
+            x = "OOL"
+        if self.integeriser.index(y) == None:
+            y = "OOL"
+        if self.integeriser.index(z) == None:
+            z = "OOL"
+        logits = self.logits(x, y, z)
+        log_norm_constant = self.log_z(x, y)
+        log_prob_tensor = logits - log_norm_constant
+        return log_prob_tensor
+
+    def log_z(self, x: Wordtype, y: Wordtype) -> torch.Tensor:
+        if self.integeriser.index(x) == None:
+            x = "OOL"
+        if self.integeriser.index(y) == None:
+            y = "OOL"
+        x_emb = self.Z[self.integeriser.index(x)]
+        y_emb = self.Z[self.integeriser.index(y)]
+        logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t() + self.OOV_weight
+        return torch.logsumexp(logits, 0)
+
+
+    def logits(self, x: Wordtype, y: Wordtype, z: Wordtype) -> torch.Tensor:
+        """Return a vector of the logs of the unnormalized probabilities, f(xyz) * θ.
+        These are commonly known as "logits" or "log-odds": the values that you 
+        exponentiate and renormalize in order to get a probability distribution."""
+        logits = 0
+        if (z == 'OOV'):
+            logits += self.OOV_weight
+        if self.integeriser.index(x) == None:
+            x = "OOL"
+        if self.integeriser.index(y) == None:
+            y = "OOL"
+        if self.integeriser.index(z) == None:
+            z = "OOL"
+        x_emb = self.Z[self.integeriser.index(x)]
+        y_emb = self.Z[self.integeriser.index(y)]
+        z_emb = self.Z[self.integeriser.index(z)]
+
+        logits += x_emb @ self.X @ z_emb + y_emb @ self.Y @ z_emb
+        # print(x, x_emb)
+        return logits
+    
+        def train(self, file: Path):    # type: ignore
+            # Optimization hyperparameters.
+            gamma0 = 0.1  # initial learning rate for spam detection, and 0.001 for language ID
+
+            # This is why we needed the nn.Parameter above.
+            # The optimizer needs to know the list of parameters
+            # it should be trying to update.
+            optimizer = optim.Adam(self.parameters(), lr=gamma0)
+            # optimizer = optim.ConvergentSGD(self.parameters(), lr=gamma0)
+
+            nn.init.zeros_(self.X)   # type: ignore
+            nn.init.zeros_(self.Y)   # type: ignore
+
+            N = num_tokens(file)
+            log.info("Start optimizing on {N} training tokens...")
+            self.regularizer_multiplier = self.l2 / N
+
+            log.info("done optimizing.")
+
+            E = 10
+            for e in range(E):
+                F = 0
+                for (x, y, z) in tqdm(random.shuffle(read_trigrams(file, self.vocab), total=N)):
+                    F_i = self.log_prob_tensor(x, y, z) - self.regularizer_multiplier * torch.sum(torch.square(self.X)) - self.regularizer_multiplier * torch.sum(torch.square(self.Y)) 
+                    (-F_i).backward()
+                    optimizer.step()
+                    optimizer.zero_grad()
+                    F += F_i
+                print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
+
+            print("Finished training on " + str(N) + " tokens")
+            return self.parameters()
+
