@@ -328,8 +328,7 @@ class BackoffAddLambdaLanguageModel(AddLambdaLanguageModel):
         # # 1-element tuple (z,). If you're looking up counts,
         # # these will have very different counts!
         prob_z = (self.event_count[z] + self.lambda_) / (self.vocab_size + self.lambda_ * self.vocab_size)
-        
-        assert self.event_count[y, z] <= self.context_count[y]
+        assert self.event_count[y, z] <= self.context_count[y,]
         prob_z_given_y = (self.event_count[y, z] + self.lambda_ * self.vocab_size * prob_z) / (self.context_count[y] + self.lambda_ * self.vocab_size)
         
         assert self.event_count[x, y, z] <= self.context_count[x, y]

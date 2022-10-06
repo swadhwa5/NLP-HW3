@@ -104,7 +104,7 @@ def main():
             count_lm2 += 1
             print(str(lm2_name) + '    ' + str(file))
 
-    print(str(count_lm1) + ' files were more probablly ' + str(lm1_name) + ' (' + str(round((count_lm1 / (count_lm1 + count_lm2)) * 100, 2)) + '%)')
-    print(str(count_lm2) + ' files were more probablly ' + str(lm2_name) + ' (' + str(round((count_lm2 / (count_lm1 + count_lm2)) * 100, 2)) + '%)')
+    print(str(count_lm1) + ' files were more probably ' + str(lm1_name) + ' (' + str(round((count_lm1 / (count_lm1 + count_lm2)) * 100, 2)) + '%)')
+    print(str(count_lm2) + ' files were more probably ' + str(lm2_name) + ' (' + str(round((count_lm2 / (count_lm1 + count_lm2)) * 100, 2)) + '%)')
 if __name__ == "__main__":
     main()
