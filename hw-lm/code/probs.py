@@ -328,7 +328,7 @@ class BackoffAddLambdaLanguageModel(AddLambdaLanguageModel):
         # # Don't forget the difference between the Wordtype z and the
         # # 1-element tuple (z,). If you're looking up counts,
         # # these will have very different counts!
-        assert self.event_count[y, z] <= self.vocab_size
+        assert self.event_count[z, ] <= self.vocab_size
         prob_z = (self.event_count[z, ] + self.lambda_) / (self.vocab_size + self.lambda_ * self.vocab_size)
         
         assert self.event_count[y, z] <= self.context_count[y,]
