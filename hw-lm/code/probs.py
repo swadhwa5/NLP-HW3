@@ -686,7 +686,7 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         F_prev = float("-inf")
         F = float("-inf") + 1
         e = 0
-        while e <= 40 and (abs(F - F_prev) > .01 or e < 10):
+        while e < 10 or (abs(F - F_prev) > .01 and e <= 40):
             F_prev = F
             F = 0
             random.shuffle(trigrams)
@@ -697,7 +697,7 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
                 optimizer.zero_grad()
                 F += F_i
             # print(self.X)
-            # print(self.OOV_weight)
+            print(self.OOV_weight)
             print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
             e += 1
 
