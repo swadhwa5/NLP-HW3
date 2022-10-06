@@ -493,7 +493,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         ### The `type: ignore` comment above tells the type checker to ignore this inconsistency.
         
         # Optimization hyperparameters.
-        gamma0 = 0.1  # initial learning rate for spam detection, and 0.001 for language ID
+        gamma0 = 0.01  # initial learning rate for spam detection, and 0.001 for language ID
 
         # This is why we needed the nn.Parameter above.
         # The optimizer needs to know the list of parameters
@@ -633,18 +633,19 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
             y = "OOL"
         x_emb = self.Z[self.integeriser.index(x)]
         y_emb = self.Z[self.integeriser.index(y)]
-        logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t() + self.OOV_weight[0]
-        return torch.logsumexp(logits, 0)
-
+        logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t()
+        OOV_logit = self.OOV_weight + x_emb @ self.X @ self.Z[self.integeriser.index('OOL')] + y_emb @ self.Y @ self.Z[self.integeriser.index('OOL')]
+        # print(logits)
+        # print(OOV_logit.shape)
+        return torch.logsumexp(torch.cat([logits, OOV_logit]), 0)
 
     def logits(self, x: Wordtype, y: Wordtype, z: Wordtype) -> torch.Tensor:
         """Return a vector of the logs of the unnormalized probabilities, f(xyz) * θ.
         These are commonly known as "logits" or "log-odds": the values that you 
         exponentiate and renormalize in order to get a probability distribution."""
         logits = 0
-        if (z == 'OOV'):
-            logits += self.OOV_weight[0]
-
+        # if (z == 'OOV'):
+        #     logits += self.OOV_weight[0]
         if self.integeriser.index(x) == None:
             x = "OOL"
         if self.integeriser.index(y) == None:
@@ -662,11 +663,12 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     def train(self, file: Path):    # type: ignore
         print("IMPROVED!!")
         # Optimization hyperparameters.
-        gamma0 = 0.1  # initial learning rate for spam detection, and 0.001 for language ID
+        gamma0 = 0.001  # initial learning rate for spam detection, and 0.001 for language ID
 
         # This is why we needed the nn.Parameter above.
         # The optimizer needs to know the list of parameters
         # it should be trying to update.
+        # optimizer = optim.SGD(self.parameters(), lr=gamma0)
         optimizer = optim.Adam(self.parameters(), lr=gamma0)
         # optimizer = optim.ConvergentSGD(self.parameters(), lr=gamma0)
 
@@ -679,9 +681,12 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
 
         log.info("done optimizing.")
 
-        E = 10
         trigrams = list(read_trigrams(file, self.vocab))
-        for e in range(E):
+        F_prev = float("-inf")
+        F = float("-inf") + 1
+        e = 0
+        while e <= 40 and (abs(F - F_prev) > .01 or e < 10):
+            F_prev = F
             F = 0
             random.shuffle(trigrams)
             for (x, y, z) in tqdm(trigrams, total=N):
@@ -690,8 +695,10 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
                 optimizer.step()
                 optimizer.zero_grad()
                 F += F_i
-            # print(torch.square(self.OOV_weight))
+            # print(self.X)
+            # print(self.OOV_weight)
             print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
+            e += 1
 
         print("Finished training on " + str(N) + " tokens")
         return self.parameters()
