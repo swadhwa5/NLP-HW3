@@ -379,21 +379,6 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
 
         self.dim = int(w)
 
-        
-        # with open(lexicon_file) as f:
-        #     first_line = next(f)  # Peel off the special first line.
-        #     first_line = first_line.strip()
-        #     [h, w] = first_line.split(" ")
-        #     lexicon = torch.empty(int(h), int(w))
-        #     lexicon_integeriser: Integerizer[str]
-        #     lexicon_integeriser = Integerizer([])
-        #     for line in f:  # All of the other lines are regular.
-        #         word_and_embedding = line.split("\t")
-        #         index = lexicon_integeriser.index(word_and_embedding[0], True)
-        #         embedding = word_and_embedding[1:]
-        #         embedding = list(map(float, embedding))
-        #         lexicon[index] = torch.tensor(embedding)
-
         # We wrap the following matrices in nn.Parameter objects.
         # This lets PyTorch know that these are parameters of the model
         # that should be listed in self.parameters() and will be
@@ -478,7 +463,6 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         z_emb = self.Z[self.integeriser.index(z)]
 
         logits = x_emb @ self.X @ z_emb + y_emb @ self.Y @ z_emb
-        # print(x, x_emb)
         return logits
 
     def train(self, file: Path):    # type: ignore
@@ -613,7 +597,6 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     def __init__(self, vocab: Vocab, lexicon_file: Path, l2: float) -> None:
         super().__init__(vocab, lexicon_file, l2)
 
-        # self.OOV_weight = torch.tensor([0.5])
         self.OOV_weight = nn.Parameter(torch.tensor([0.0]), requires_grad=True)
 
     @typechecked
@@ -632,9 +615,6 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         x_emb = self.Z[self.integeriser.index(x)]
         y_emb = self.Z[self.integeriser.index(y)]
         logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t()
-        # OOV_logit = self.OOV_weight + x_emb @ self.X @ self.Z[self.integeriser.index('OOL')] + y_emb @ self.Y @ self.Z[self.integeriser.index('OOL')]
-        # print(logits)
-        # print(OOV_logit.shape)
         logits[self.integeriser.index("OOV")] = logits[self.integeriser.index("OOV")] + self.OOV_weight[0]
         return torch.logsumexp(logits, 0)
 
@@ -656,20 +636,25 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         z_emb = self.Z[self.integeriser.index(z)]
 
         logits += x_emb @ self.X @ z_emb + y_emb @ self.Y @ z_emb
-        # print(x, x_emb)
         return logits
     
     def train(self, file: Path):    # type: ignore
         # Optimization hyperparameters.
-        gamma0 = 0.1  # initial learning rate for spam detection(0.1), and 0.001 for language ID
+        # The Optimization hyperparameters are currently set as per english_spanish. Follow the comments to 
+        # get the appropriate values for gen_spam.
+        gamma0 = 0.1  # initial learning rate: 0.1 for spam detection, and 0.001 for language ID
 
         N = num_tokens(file)
         # This is why we needed the nn.Parameter above.
         # The optimizer needs to know the list of parameters
         # it should be trying to update.
         # optimizer = optim.SGD(self.parameters(), lr=gamma0)
-        optimizer = ConvergentSGD(self.parameters(), gamma0, (2 * self.l2)/N)
-        # optimizer = optim.Adam(self.parameters(), lr=gamma0)
+        
+        # For gen_spam, use optim.Adam
+        optimizer = optim.Adam(self.parameters(), lr=gamma0)
+        
+        # For eng_span, use ConvergentSGD
+        # optimizer = ConvergentSGD(self.parameters(), gamma0, (2 * self.l2)/N)
 
         nn.init.zeros_(self.X)   # type: ignore
         nn.init.zeros_(self.Y)   # type: ignore
@@ -691,56 +676,9 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
                 optimizer.step()
                 optimizer.zero_grad()
                 F += F_i
-            # print(self.X)
-            # print(self.OOV_weight)
             print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
             e += 1
 
         print("Finished training on " + str(N) + " tokens")
         return self.parameters()
-
-    #     def train(self, file: Path):    # type: ignore
-    #     print("IMPROVED!!")
-    #     # Optimization hyperparameters.
-    #     gamma0 = 0.001  # initial learning rate for spam detection, and 0.001 for language ID
-
-    #     N = num_tokens(file)
-    #     # This is why we needed the nn.Parameter above.
-    #     # The optimizer needs to know the list of parameters
-    #     # it should be trying to update.
-    #     # optimizer = optim.SGD(self.parameters(), lr=gamma0)
-    #     # optimizer = ConvergentSGD(self.parameters(), gamma0, (2 * self.l2)/N)
-    #     optimizer = optim.Adam(self.parameters(), lr=gamma0)
-    #     # optimizer = optim.ConvergentSGD(self.parameters(), lr=gamma0)
-
-    #     nn.init.zeros_(self.X)   # type: ignore
-    #     nn.init.zeros_(self.Y)   # type: ignore
-
-    #     N = num_tokens(file)
-    #     log.info("Start optimizing on {N} training tokens...")
-    #     self.regularizer_multiplier = self.l2 / N
-
-    #     log.info("done optimizing.")
-
-    #     trigrams = list(read_trigrams(file, self.vocab))
-    #     F_prev = float("-inf")
-    #     F = float("-inf") + 1
-    #     e = 0
-    #     while e < 10 or (abs(F - F_prev) > .01 and e <= 40):
-    #         F_prev = F
-    #         F = 0
-    #         random.shuffle(trigrams)
-    #         for (x, y, z) in tqdm(trigrams, total=N):
-    #             F_i = self.log_prob_tensor(x, y, z) - self.regularizer_multiplier * (torch.sum(torch.square(self.X)) + torch.sum(torch.square(self.Y)) + torch.square(self.OOV_weight))
-    #             (-F_i).backward()
-    #             optimizer.step()
-    #             optimizer.zero_grad()
-    #             F += F_i
-    #         # print(self.X)
-    #         print(self.OOV_weight)
-    #         print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
-    #         e += 1
-
-    #     print("Finished training on " + str(N) + " tokens")
-    #     return self.parameters()
 

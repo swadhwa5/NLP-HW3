@@ -1,1 +1,1 @@
-en7.model es7.model 0.7
+en.model es.model 0.7
