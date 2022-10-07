@@ -35,6 +35,7 @@ from typeguard import typechecked
 from typing import Counter
 from collections import Counter
 from integerize import Integerizer   # look at integerize.py for more info
+from SGD_convergent import ConvergentSGD
 from tqdm import tqdm
 
 patch_typeguard()   # makes @typechecked work with torchtyping
@@ -664,12 +665,14 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     def train(self, file: Path):    # type: ignore
         print("IMPROVED!!")
         # Optimization hyperparameters.
-        gamma0 = 0.01  # initial learning rate for spam detection, and 0.001 for language ID
+        gamma0 = 0.001  # initial learning rate for spam detection, and 0.001 for language ID
 
+        N = num_tokens(file)
         # This is why we needed the nn.Parameter above.
         # The optimizer needs to know the list of parameters
         # it should be trying to update.
         # optimizer = optim.SGD(self.parameters(), lr=gamma0)
+        # optimizer = ConvergentSGD(self.parameters(), gamma0, (2 * self.l2)/N)
         optimizer = optim.Adam(self.parameters(), lr=gamma0)
         # optimizer = optim.ConvergentSGD(self.parameters(), lr=gamma0)
 
@@ -683,13 +686,10 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         log.info("done optimizing.")
 
         trigrams = list(read_trigrams(file, self.vocab))
-        F_prev = float("-inf")
-        F = float("-inf") + 1
-        e = 0
-        while e < 10 or (abs(F - F_prev) > .01 and e <= 40):
-            F_prev = F
+        E = 10
+        for e in range(E):
             F = 0
-            random.shuffle(trigrams)
+            # random.shuffle(trigrams)
             for (x, y, z) in tqdm(trigrams, total=N):
                 F_i = self.log_prob_tensor(x, y, z) - self.regularizer_multiplier * (torch.sum(torch.square(self.X)) + torch.sum(torch.square(self.Y)) + torch.square(self.OOV_weight))
                 (-F_i).backward()
@@ -697,10 +697,55 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
                 optimizer.zero_grad()
                 F += F_i
             # print(self.X)
-            print(self.OOV_weight)
+            # print(self.OOV_weight)
             print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
             e += 1
 
         print("Finished training on " + str(N) + " tokens")
         return self.parameters()
+
+    #     def train(self, file: Path):    # type: ignore
+    #     print("IMPROVED!!")
+    #     # Optimization hyperparameters.
+    #     gamma0 = 0.001  # initial learning rate for spam detection, and 0.001 for language ID
+
+    #     N = num_tokens(file)
+    #     # This is why we needed the nn.Parameter above.
+    #     # The optimizer needs to know the list of parameters
+    #     # it should be trying to update.
+    #     # optimizer = optim.SGD(self.parameters(), lr=gamma0)
+    #     # optimizer = ConvergentSGD(self.parameters(), gamma0, (2 * self.l2)/N)
+    #     optimizer = optim.Adam(self.parameters(), lr=gamma0)
+    #     # optimizer = optim.ConvergentSGD(self.parameters(), lr=gamma0)
+
+    #     nn.init.zeros_(self.X)   # type: ignore
+    #     nn.init.zeros_(self.Y)   # type: ignore
+
+    #     N = num_tokens(file)
+    #     log.info("Start optimizing on {N} training tokens...")
+    #     self.regularizer_multiplier = self.l2 / N
+
+    #     log.info("done optimizing.")
+
+    #     trigrams = list(read_trigrams(file, self.vocab))
+    #     F_prev = float("-inf")
+    #     F = float("-inf") + 1
+    #     e = 0
+    #     while e < 10 or (abs(F - F_prev) > .01 and e <= 40):
+    #         F_prev = F
+    #         F = 0
+    #         random.shuffle(trigrams)
+    #         for (x, y, z) in tqdm(trigrams, total=N):
+    #             F_i = self.log_prob_tensor(x, y, z) - self.regularizer_multiplier * (torch.sum(torch.square(self.X)) + torch.sum(torch.square(self.Y)) + torch.square(self.OOV_weight))
+    #             (-F_i).backward()
+    #             optimizer.step()
+    #             optimizer.zero_grad()
+    #             F += F_i
+    #         # print(self.X)
+    #         print(self.OOV_weight)
+    #         print("epoch " + str(e + 1) + ": F = " + str(F.item() / N))
+    #         e += 1
+
+    #     print("Finished training on " + str(N) + " tokens")
+    #     return self.parameters()
 
