@@ -56,7 +56,7 @@ def get_next(lm: LanguageModel, x: Wordtype, y: Wordtype) -> any:
     for i, z in enumerate(lm.vocab):
         if (weights[i] > r):
             return z
-    return z # why are we returning z anyways?
+    return z
 
 
 def main():
@@ -69,7 +69,7 @@ def main():
     # We use natural log for our internal computations and that's
     # the kind of log-probability that file_log_prob returns.
     # We'll print that first.
-    print(args)
+    # print(args)
     for _ in range(args.num_gen[0]):
         sentence = ['BOS', 'BOS']
         i = 0
