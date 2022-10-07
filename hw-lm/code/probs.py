@@ -613,8 +613,8 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     def __init__(self, vocab: Vocab, lexicon_file: Path, l2: float) -> None:
         super().__init__(vocab, lexicon_file, l2)
 
-        self.OOV_weight = torch.tensor([0.5])
-        # nn.Parameter(torch.tensor([0.0]), requires_grad=True)
+        # self.OOV_weight = torch.tensor([0.5])
+        self.OOV_weight = nn.Parameter(torch.tensor([0.0]), requires_grad=True)
 
     @typechecked
     def log_prob_tensor(self, x: Wordtype, y: Wordtype, z: Wordtype) -> TensorType[()]:
