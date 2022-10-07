@@ -642,7 +642,7 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         # Optimization hyperparameters.
         # The Optimization hyperparameters are currently set as per english_spanish. Follow the comments to 
         # get the appropriate values for gen_spam.
-        gamma0 = 0.1  # initial learning rate: 0.1 for spam detection, and 0.001 for language ID
+        gamma0 = 0.001  # initial learning rate: 0.1 for spam detection, and 0.001 for language ID
 
         N = num_tokens(file)
         # This is why we needed the nn.Parameter above.
@@ -651,10 +651,10 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         # optimizer = optim.SGD(self.parameters(), lr=gamma0)
         
         # For gen_spam, use optim.Adam
-        optimizer = optim.Adam(self.parameters(), lr=gamma0)
+        # optimizer = optim.Adam(self.parameters(), lr=gamma0)
         
         # For eng_span, use ConvergentSGD
-        # optimizer = ConvergentSGD(self.parameters(), gamma0, (2 * self.l2)/N)
+        optimizer = ConvergentSGD(self.parameters(), gamma0, (2 * self.l2)/N)
 
         nn.init.zeros_(self.X)   # type: ignore
         nn.init.zeros_(self.Y)   # type: ignore
