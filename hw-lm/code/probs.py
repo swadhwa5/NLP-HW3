@@ -611,43 +611,8 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     #   as `torch.optim.Adam` (https://pytorch.org/docs/stable/optim.html).
     #
     def __init__(self, vocab: Vocab, lexicon_file: Path, l2: float) -> None:
-        super().__init__(vocab)
-        if l2 < 0:
-            log.error(f"l2 regularization strength value was {l2}")
-            raise ValueError("You must include a non-negative regularization value")
-        self.l2: float = l2
+        super().__init__(vocab, lexicon_file, l2)
 
-        self.vocab = vocab
-
-        # TODO: READ THE LEXICON OF WORD VECTORS AND STORE IT IN A USEFUL FORMAT.
-
-        lexicon_map = dict()
-        with open(lexicon_file) as f:
-            first_line = next(f)  # Peel off the special first line.
-            first_line = first_line.strip()
-            [h, w] = first_line.split(" ")
-            for line in f:  # All of the other lines are regular.
-                word_and_embedding = line.split("\t")
-                embedding = word_and_embedding[1:]
-                embedding = list(map(float, embedding))
-                lexicon_map[word_and_embedding[0]] = torch.tensor(embedding)
-
-        z = []
-        voc = []
-        i = 0
-        for word in self.vocab:
-            voc.append(word)
-            if word not in lexicon_map:
-                word = "OOL"
-            z.append(lexicon_map[word])
-            i += 1
-        self.integeriser = Integerizer(voc)
-        self.Z = torch.stack(z)
-
-        self.dim = int(w)
-
-        self.X = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
-        self.Y = nn.Parameter(torch.zeros((self.dim, self.dim)), requires_grad=True)
         self.OOV_weight = torch.tensor([0.5])
         # nn.Parameter(torch.tensor([0.0]), requires_grad=True)
 
@@ -670,7 +635,7 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         # OOV_logit = self.OOV_weight + x_emb @ self.X @ self.Z[self.integeriser.index('OOL')] + y_emb @ self.Y @ self.Z[self.integeriser.index('OOL')]
         # print(logits)
         # print(OOV_logit.shape)
-        logits[self.integeriser("OOV")] = logits[self.integeriser("OOV")] + self.OOV_weight[0]
+        logits[self.integeriser.index("OOV")] = logits[self.integeriser.index("OOV")] + self.OOV_weight[0]
         return torch.logsumexp(logits, 0)
 
     def logits(self, x: Wordtype, y: Wordtype, z: Wordtype) -> torch.Tensor:
@@ -696,7 +661,7 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     
     def train(self, file: Path):    # type: ignore
         # Optimization hyperparameters.
-        gamma0 = 0.1  # initial learning rate for spam detection(0.1), and 0.001 for language ID
+        gamma0 = 0.001  # initial learning rate for spam detection(0.1), and 0.001 for language ID
 
         N = num_tokens(file)
         # This is why we needed the nn.Parameter above.
