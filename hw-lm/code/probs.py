@@ -618,7 +618,8 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     def __init__(self, vocab: Vocab, lexicon_file: Path, l2: float) -> None:
         super().__init__(vocab, lexicon_file, l2)
 
-        self.OOV_weight = nn.Parameter(torch.tensor([0.0]), requires_grad=True)
+        self.OOV_weight = torch.tensor([0.5])
+        # nn.Parameter(torch.tensor([0.0]), requires_grad=True)
 
     @typechecked
     def log_prob_tensor(self, x: Wordtype, y: Wordtype, z: Wordtype) -> TensorType[()]:
@@ -636,10 +637,11 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         x_emb = self.Z[self.integeriser.index(x)]
         y_emb = self.Z[self.integeriser.index(y)]
         logits = x_emb @ self.X @ self.Z.t() + y_emb @ self.Y @ self.Z.t()
-        OOV_logit = self.OOV_weight + x_emb @ self.X @ self.Z[self.integeriser.index('OOL')] + y_emb @ self.Y @ self.Z[self.integeriser.index('OOL')]
+        # OOV_logit = self.OOV_weight + x_emb @ self.X @ self.Z[self.integeriser.index('OOL')] + y_emb @ self.Y @ self.Z[self.integeriser.index('OOL')]
         # print(logits)
         # print(OOV_logit.shape)
-        return torch.logsumexp(torch.cat([logits, OOV_logit]), 0)
+        logits += self.OOV_weight[0]
+        return torch.logsumexp(logits, 0)
 
     def logits(self, x: Wordtype, y: Wordtype, z: Wordtype) -> torch.Tensor:
         """Return a vector of the logs of the unnormalized probabilities, f(xyz) * θ.
@@ -672,9 +674,8 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         # The optimizer needs to know the list of parameters
         # it should be trying to update.
         # optimizer = optim.SGD(self.parameters(), lr=gamma0)
-        # optimizer = ConvergentSGD(self.parameters(), gamma0, (2 * self.l2)/N)
-        optimizer = optim.Adam(self.parameters(), lr=gamma0)
-        # optimizer = optim.ConvergentSGD(self.parameters(), lr=gamma0)
+        optimizer = ConvergentSGD(self.parameters(), gamma0, (2 * self.l2)/N)
+        # optimizer = optim.Adam(self.parameters(), lr=gamma0)
 
         nn.init.zeros_(self.X)   # type: ignore
         nn.init.zeros_(self.Y)   # type: ignore
