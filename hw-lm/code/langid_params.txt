@@ -1,1 +1,1 @@
-corpus=en.1K~vocab=vocab-engspan.txt~smoother=log_linear~lexicon=chars-10.txt~l2=1.0.model corpus=sp.1K~vocab=vocab-engspan.txt~smoother=log_linear~lexicon=chars-10.txt~l2=1.0.model 0.7
+en.model es.model 0.7

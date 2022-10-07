@@ -494,7 +494,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         ### The `type: ignore` comment above tells the type checker to ignore this inconsistency.
         
         # Optimization hyperparameters.
-        gamma0 = 0.01  # initial learning rate for spam detection, and 0.001 for language ID
+        gamma0 = 0.001  # initial learning rate for spam detection, and 0.001 for language ID
 
         # This is why we needed the nn.Parameter above.
         # The optimizer needs to know the list of parameters
