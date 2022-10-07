@@ -1,1 +1,1 @@
-corpus=gen~vocab=vocab-genspam.txt~smoother=log_linear~lexicon=words-10.txt~l2=1.0.model corpus=spam~vocab=vocab-genspam.txt~smoother=log_linear~lexicon=words-10.txt~l2=1.0.model 0.7
+corpus=gen~vocab=vocab-genspam.txt~smoother=log_linear~lexicon=words-50.txt~l2=1.0.model corpus=spam~vocab=vocab-genspam.txt~smoother=log_linear~lexicon=words-50.txt~l2=1.0.model 0.7
