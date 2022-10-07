@@ -1,1 +1,1 @@
-gen2.model spam2.model 0.7
+gen5.model spam5.model 0.7

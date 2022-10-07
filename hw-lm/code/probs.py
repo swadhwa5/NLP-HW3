@@ -490,7 +490,7 @@ class EmbeddingLogLinearLanguageModel(LanguageModel, nn.Module):
         ### The `type: ignore` comment above tells the type checker to ignore this inconsistency.
         
         # Optimization hyperparameters.
-        gamma0 = 0.001  # initial learning rate for spam detection(0.1), and 0.001 for language ID
+        gamma0 = 0.1  # initial learning rate for spam detection(0.1), and 0.001 for language ID
 
         # This is why we needed the nn.Parameter above.
         # The optimizer needs to know the list of parameters
@@ -661,7 +661,7 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     
     def train(self, file: Path):    # type: ignore
         # Optimization hyperparameters.
-        gamma0 = 0.001  # initial learning rate for spam detection(0.1), and 0.001 for language ID
+        gamma0 = 0.1  # initial learning rate for spam detection(0.1), and 0.001 for language ID
 
         N = num_tokens(file)
         # This is why we needed the nn.Parameter above.
