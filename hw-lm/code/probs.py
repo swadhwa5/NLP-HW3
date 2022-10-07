@@ -645,8 +645,8 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
         These are commonly known as "logits" or "log-odds": the values that you 
         exponentiate and renormalize in order to get a probability distribution."""
         logits = 0
-        # if (z == 'OOV'):
-        #     logits += self.OOV_weight[0]
+        if (z == 'OOV'):
+            logits += self.OOV_weight[0]
         if self.integeriser.index(x) == None:
             x = "OOL"
         if self.integeriser.index(y) == None:
@@ -664,7 +664,7 @@ class ImprovedLogLinearLanguageModel(EmbeddingLogLinearLanguageModel):
     def train(self, file: Path):    # type: ignore
         print("IMPROVED!!")
         # Optimization hyperparameters.
-        gamma0 = 0.001  # initial learning rate for spam detection, and 0.001 for language ID
+        gamma0 = 0.01  # initial learning rate for spam detection, and 0.001 for language ID
 
         # This is why we needed the nn.Parameter above.
         # The optimizer needs to know the list of parameters
