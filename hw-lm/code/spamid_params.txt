@@ -1,1 +1,1 @@
-gen.model spam.model 0.7
+/home/swadhwa5/Desktop/NLP/HW/NLP-HW3/hw-lm/code/corpus=gen~vocab=vocab-genspam.txt~smoother=log_linear~lexicon=words-10.txt~l2=1.0.model /home/swadhwa5/Desktop/NLP/HW/NLP-HW3/hw-lm/code/corpus=spam~vocab=vocab-genspam.txt~smoother=log_linear~lexicon=words-10.txt~l2=1.0.model 0.7
